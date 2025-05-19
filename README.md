@@ -59,6 +59,12 @@ ari/
    ```
    The frontend will run on http://localhost:3000
 
+## Postgres setup
+backend > .env
+   ```bash
+   DATABASE_URL=postgresql://postgres:Manas@localhost:5432/revenue_db
+   ```
+
 ## Development
 
 - The Flask backend runs on port 5000
