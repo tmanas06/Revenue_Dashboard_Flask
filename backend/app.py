@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from datetime import datetime
 from config import Config
+from ai_service import AIRecommendationService
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -42,6 +43,9 @@ class Revenue(db.Model):
             'description': self.description,
             'created_at': self.created_at.isoformat()
         }
+
+# Initialize AI Service
+ai_service = AIRecommendationService()
 
 # Create tables
 with app.app_context():
@@ -174,6 +178,58 @@ def get_categories():
         return jsonify(categories)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# AI Recommendation Endpoints
+@app.route('/api/ai/recommendations', methods=['GET'])
+def get_ai_recommendations():
+    try:
+        # Get all revenue data
+        revenue_data = Revenue.query.order_by(Revenue.date.asc()).all()
+        
+        # Convert to list of dicts
+        revenue_list = [{
+            'date': item.date.isoformat(),
+            'amount': float(item.amount),
+            'category': item.category,
+            'description': item.description
+        } for item in revenue_data]
+        
+        # Get AI analysis
+        analysis = ai_service.analyze_revenue_trends(revenue_list)
+        
+        if analysis['status'] == 'error':
+            return jsonify({
+                'status': 'error',
+                'message': analysis.get('message', 'AI analysis failed')
+            }), 500
+        
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/ai/marketing-ideas', methods=['GET'])
+def get_marketing_ideas():
+    try:
+        business_type = request.args.get('business_type', 'e-commerce')
+        target_audience = request.args.get('target_audience', 'general consumers')
+        
+        # Generate marketing ideas using AI
+        prompt = f"Generate marketing ideas for a {business_type} business targeting {target_audience}. Focus on innovative strategies that can help grow the business and engage the target audience."
+        
+        ideas = ai_service.generate_text(prompt, max_length=500)
+        
+        return jsonify({
+            'status': 'success',
+            'marketing_ideas': ideas
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 # Revenue Dashboard Endpoints
 @app.route('/api/dashboard/revenue-summary', methods=['GET'])
@@ -310,4 +366,4 @@ def get_plan_distribution():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
